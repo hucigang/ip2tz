@@ -44,6 +44,10 @@ out:
 	return tz;
 }
 
+/* A 010.000.0.0 - 010.255.255.255
+ * B 172.016.0.0 - 172.031.255.255
+ * C 192.168.0.0 - 192.168.255.255
+ */
 static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
 {
 	uint32_t buf[4];
@@ -55,6 +59,11 @@ static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
 	res = sscanf(addr, "%d.%d.%d.%d", buf, buf+1, buf+2, buf+3);
 	if (res != 4)
 		return -EINVAL;
+
+	if ((buf[0] == 10) ||
+		(buf[0] == 172 && (buf[1] > 15 && buf[1] < 32)) ||
+		(buf[0] == 172 && buf[1] == 168))
+		return -2;
 
 	*ipv4_addr = (buf[0] << 23) | (buf[1] << 16) | (buf[2] <<  8) | (buf[3] <<  0);
 
