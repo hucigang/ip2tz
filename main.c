@@ -92,8 +92,9 @@ int main(int argc, const char * argv[]) {
     
     int ips  = 1;
     
-    char a[33] = {0};
-    getPos(argv[2], a);
+    char bin_addr[33] = {0};
+    getPos(argv[2], bin_addr);
+    printf("%s\n", bin_addr);
     
     if ((fp = fopen(argv[1],"rb")) == NULL)
     {
@@ -113,7 +114,7 @@ int main(int argc, const char * argv[]) {
     
     char* temp;
     temp=(char*)malloc(8*sizeof(char));
-    temp = substr(a, 0, 8);
+    temp = substr(bin_addr, 0, 8);
 //
     
     char* _temp;
@@ -196,7 +197,7 @@ int main(int argc, const char * argv[]) {
             count = 0;
 
             _temp=(char*)malloc(24*sizeof(char));
-            _temp = substr(a, 8, 32);
+            _temp = substr(bin_addr, 8, 32);
             
             long argIP = strtol(_temp, NULL, 2 );
             long curIP = strtol(ip, NULL, 2 );

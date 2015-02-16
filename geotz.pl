@@ -1,6 +1,6 @@
 #!/bin/perl -w
 use strict;
-use Compress::Zlib;
+#use Compress::Zlib;
 
 my $geoPath=".";
 
@@ -147,7 +147,7 @@ while (my $line = <FILE>){
     next if (!($line =~ m/^[0-9]/));
     my @temp = split (',',$line);
     # print $temp[2]."\n";
-    #print $temp[0].",".($temp[1]-$temp[0]).",".$hashLong{$temp[2]}."\n";
+    # print $temp[0].",".($temp[1]-$temp[0]).",".$hashLong{$temp[2]}."\n";
     my $tz = $hashLong{$temp[2]};
     if ($tz == 1){
         $start1{$temp[0]} = $temp[1];
