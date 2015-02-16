@@ -81,11 +81,16 @@ int tz_lookup(void *obj, char *addr, sa_family_t type, int *tz)
 	if (res != 0)
 		return res;
 
+	/* TODO */
+
 	return 0;
 }
 
 void tz_shutdown(void *obj)
 {
+	tz_t *tz = obj;
+	close(tz->fd);
+	free(tz);
 }
 
 #ifdef TEST
