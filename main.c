@@ -147,10 +147,10 @@ int main(int argc, const char * argv[]) {
         if (ipCountPos == 0){
             ipCount[HEADCOUNT] = '\0';
             int _curCount = strtol(ipCount, NULL, 2);
-           // printf("取得一个Head:%s %d Count %ld 还有%d个\n", ipHead,  strtol(ipCount, NULL, 2), curCount, ips-1);
+            printf("取得一个Head:%s %d Count %ld 还有%d个\n", ipHead,  strtol(ipCount, NULL, 2), curCount, ips-1);
 
             if (strcmp(ipHead, temp) == 0){
-//                printf("%d %s\n", curCount, "Find");
+                printf("%d %s\n", curCount, "Find");
                 realHeadCount = _curCount;
                 curPos = headcount;
             }else{
@@ -167,12 +167,12 @@ int main(int argc, const char * argv[]) {
             }else{
                 ipHeadPos = -1;
                 ipCountPos = -1;
-                //printf ("%s %d\n", temp, curPos);
+                printf ("%s %d\n", temp, curPos);
                 int btCount = 16;
                 int bHead = 8;
                 int bCount = 16;
                 int head = btCount+(bHead+bCount)*(headcount+1);
-               // printf ("%d %d %d\n", head/8, head%8, curCount);
+                printf ("%d %d %d\n", head/8, head%8, curCount);
                 fseek(fp,4*curCount,1);
             }
         }
@@ -180,7 +180,7 @@ int main(int argc, const char * argv[]) {
         //                          000101110111000000000000
         if (ipPos == 0){
             ip[count] = '\0';
-            //printf("%d IP: %s\n", realHeadCount, ip);
+            printf("%d IP: %s\n", realHeadCount, ip);
             ipPos = -1;
             count = 0;
         }
@@ -192,7 +192,7 @@ int main(int argc, const char * argv[]) {
             if (ttemp > 16){
                 ttemp = ttemp - 256;
             }
-            //printf("TZ: %d\n", ttemp);
+            printf("TZ: %d\n", ttemp);
             tzPos = -1;
             count = 0;
 
@@ -201,15 +201,15 @@ int main(int argc, const char * argv[]) {
             
             long argIP = strtol(_temp, NULL, 2 );
             long curIP = strtol(ip, NULL, 2 );
-            //printf("%s %s, %s\n", temp, _temp, ip);
+            printf("%s %s, %s\n", temp, _temp, ip);
             
             // 判断当前IP段比数据库中的IP段大则将时区保存，
             // 发现小于这个IP段时 则表示在上个IP段中 即可停止查找
             if (argIP < curIP || realHeadCount <= 1){
            
-                //printf("%s, %s\n",  _temp, ip);
+                printf("%s, %s\n",  _temp, ip);
                 
-                //printf("%d %ld, %ld\n", realHeadCount, argIP, curIP);
+                printf("%d %ld, %ld\n", realHeadCount, argIP, curIP);
                 break;
             }else{
                 realPos = ttemp;

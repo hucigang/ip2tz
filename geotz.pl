@@ -327,14 +327,14 @@ sub getFileString{
     }
         my $offset = 0;
 
-        my @tstart = split //, unpack("B32",pack("N",$key));
-        my @tzs = split //, unpack("B8",pack("i",$value));
+        my @tstart = split //, unpack("b32",pack("N",$key));
+        my @tzs = split //, unpack("b8",pack("i",$value));
 =pod
         my @dx = ();
         if ($value > 0){
-            @dx = split //, unpack("B8",pack("i",1));
+            @dx = split //, unpack("b8",pack("i",1));
         }else{
-            @dx = split //, unpack("B8",pack("i",0));
+            @dx = split //, unpack("b8",pack("i",0));
         }
 =cut
         my $bitStart = "";
@@ -373,7 +373,7 @@ sub getFileString{
                 my @preHeadArray = split //, $preHead;
                 vec($bitHead, $offset++, 1) = $preHeadArray[$i];
             }
-            my @lengths = split //, unpack("B16",pack("n",$preHeadCount));
+            my @lengths = split //, unpack("b16",pack("n",$preHeadCount));
             my $lengthBit = "";
             $offset = 0;
             foreach my $bit (@lengths){
@@ -393,7 +393,7 @@ sub getFileString{
         $result .= $bitStart.$bitTZ;
     } 
     print "HeadResultCount : $headResultCount  $aaacount\n";
-    my @headResultCounts = split //, unpack("B16",pack("n",$headResultCount));
+    my @headResultCounts = split //, unpack("b16",pack("n",$headResultCount));
     my $CountBit = "";
     my $oset = 0;
     foreach my $bit (@headResultCounts){

@@ -15,17 +15,40 @@
 
 #include "tz.h"
 
+/* data base format
+ * hdr
+ * data
+ */
+typedef struct tz_hdr_data {
+	uint8_t hip;
+	uint16_t cnt;
+} hdr_data_t;
+
+typedef struct  tz_hdr {
+	uint8_t cnt[2];
+} tz_hdr_t;
+
+typedef struct tz_data {
+	uint8_t lip[3];
+	int8_t  tz;
+} tz_data_t;
+
 #ifndef DB_PATH
 #define DB_PATH "/emmc/tz.db"
 #endif
 
 typedef struct tz_private {
 	int fd; /* tz db fd */
+
+	int hdr_cnt;
+	hdr_data_t hdr[256];
+
+	int data_offset;
 } tz_t;
 
 void *tz_setup(const char *server)
 {
-	int fd;
+	int fd, res, i;
 	tz_t *tz = NULL;
 
 	fd = open(DB_PATH, O_RDONLY);
@@ -38,6 +61,32 @@ void *tz_setup(const char *server)
 	if (tz)
 	{
 		tz->fd = fd;
+	}
+
+	tz_hdr_t hdr;
+	res = read(fd, (void *)&hdr, sizeof(hdr));
+	if (res != sizeof(hdr))
+	{
+		close(fd);
+		free(tz);
+		tz = NULL;
+	}
+	tz->data_offset += sizeof(hdr);
+
+	tz->hdr_cnt = ((uint32_t)hdr.cnt[0] << 8) | ((uint32_t)hdr.cnt[1] << 0);
+	for (i = 0; i < tz->hdr_cnt; i++)
+	{
+		uint8_t buf[3];
+		res = read(fd, buf, sizeof(buf));
+		if (res != sizeof(buf))
+		{
+			close(fd);
+			free(tz);
+			tz = NULL;
+		}
+		tz->hdr[i].hip = buf[0];
+		tz->hdr[i].cnt = (((uint32_t)buf[1]) << 8) | ((uint32_t)buf[2]);
+		tz->data_offset += sizeof(buf);
 	}
 
 out:
@@ -65,7 +114,50 @@ static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
 		(buf[0] == 172 && buf[1] == 168))
 		return -2;
 
-	*ipv4_addr = (buf[0] << 23) | (buf[1] << 16) | (buf[2] <<  8) | (buf[3] <<  0);
+	*ipv4_addr = (buf[0] << 24) | (buf[1] << 16) | (buf[2] <<  8) | (buf[3] <<  0);
+
+	return 0;
+}
+
+static int tz_offset(tz_t *tz, uint8_t hip, int *hdr_index)
+{
+	int offset = tz->data_offset;
+	int i;
+
+	*hdr_index = 0;
+	for (i = 0; i < tz->hdr_cnt; i ++)
+	{
+		hdr_data_t *hdr = &tz->hdr[i];
+		if (hdr->hip > hip)
+			break;
+		(*hdr_index) ++;
+		offset += hdr->cnt * sizeof(tz_data_t);
+	}
+
+	return offset;
+}
+
+static int tz_search(tz_t *tz, int offset, uint32_t lip, int index, int *tmz)
+{
+	hdr_data_t *hdr = &tz->hdr[index];
+	int i;
+
+	for (i = 0; i < hdr->cnt; i ++)
+	{
+		char buf[4];
+		uint32_t cip;
+
+		int res = pread(tz->fd, buf, sizeof(buf), offset);
+		if (res != sizeof(buf))
+			return -EIO;
+		cip  = ((uint32_t)buf[0]) << 8;
+		cip += ((uint32_t)buf[1]) << 0;
+		cip += ((uint32_t)buf[2]) << 16;
+		if (cip > lip)
+			break;
+		*tmz = buf[3];
+		offset += sizeof(buf);
+	}
 
 	return 0;
 }
@@ -75,15 +167,19 @@ static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
  */
 int tz_lookup(void *obj, char *addr, sa_family_t type, int *tz)
 {
-	uint32_t ipv4_addr;
+	uint32_t ipv4_addr, hip, lip;
 	int res = to_ipv4(addr, type, &ipv4_addr);
+	int offset, index;
 
 	if (res != 0)
 		return res;
 
-	/* TODO */
+	hip = ipv4_addr >> 24;
+	lip = ipv4_addr & 0xffffff;
 
-	return 0;
+	offset = tz_offset(obj, hip, &index);
+
+	return tz_search(obj, offset, lip, index, tz);
 }
 
 void tz_shutdown(void *obj)
@@ -96,16 +192,16 @@ void tz_shutdown(void *obj)
 #ifdef TEST
 int main(int argc, char *argv[])
 {
-	char *ip = "8.8.8.8";
+	char *ip = argv[1];
 	void *obj = tz_setup("xx");
 	int res, tz = -1;
 
-	if (obj == NULL)
+	if (obj == NULL || argc != 2)
 		return -1;
 
 	res = tz_lookup(obj, ip, AF_INET, &tz);
 
-	printf("res %d, %s tz %d\n", res, ip, tz);
+	printf("res %d, ip %s, tz %d\n", res, ip, tz);
 
 	return 0;
 }
