@@ -97,15 +97,15 @@ out:
  * B 172.016.0.0 - 172.031.255.255
  * C 192.168.0.0 - 192.168.255.255
  */
-static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
+static int to_ipv4(char *addr, sa_family_t type, uint64_t *ipv4_addr)
 {
-	uint32_t buf[4];
+	uint64_t buf[4];
 	int res;
 
 	if (type != AF_INET)
 		return -1;
 
-	res = sscanf(addr, "%d.%d.%d.%d", buf, buf+1, buf+2, buf+3);
+	res = sscanf(addr, "%llu.%llu.%llu.%llu", buf, buf+1, buf+2, buf+3);
 	if (res != 4)
 		return -EINVAL;
 
@@ -113,23 +113,24 @@ static int to_ipv4(char *addr, sa_family_t type, uint32_t *ipv4_addr)
 		(buf[0] == 172 && (buf[1] > 15 && buf[1] < 32)) ||
 		(buf[0] == 172 && buf[1] == 168))
 		return -2;
-
-	*ipv4_addr = (buf[0] << 24) | (buf[1] << 16) | (buf[2] <<  8) | (buf[3] <<  0);
+   
+	*ipv4_addr = (buf[0] << 24) + (buf[1] << 16) + (buf[2] <<  8) + (buf[3] <<  0);
 
 	return 0;
 }
 
 static int tz_offset(tz_t *tz, uint8_t hip, int *hdr_index)
 {
-	int offset = tz->data_offset;
+	uint64_t offset = tz->data_offset;
 	int i;
 
 	*hdr_index = 0;
 	for (i = 0; i < tz->hdr_cnt; i ++)
 	{
 		hdr_data_t *hdr = &tz->hdr[i];
-		if (hdr->hip > hip)
+		if (hdr->hip > hip){
 			break;
+        }
 		(*hdr_index) ++;
 		offset += hdr->cnt * sizeof(tz_data_t);
 	}
@@ -137,26 +138,31 @@ static int tz_offset(tz_t *tz, uint8_t hip, int *hdr_index)
 	return offset;
 }
 
-static int tz_search(tz_t *tz, int offset, uint32_t lip, int index, int *tmz)
+static int tz_search(tz_t *tz, int offset, uint64_t lip, int index, int *tmz)
 {
 	hdr_data_t *hdr = &tz->hdr[index];
 	int i;
 
+    //printf ("index %d %d offset: %d\n", index, hdr->cnt, offset);
+
 	for (i = 0; i < hdr->cnt; i ++)
 	{
-		char buf[4];
-		uint32_t cip;
+		unsigned char buf[3];
+		signed char buft[1];
+		uint64_t cip;
 
 		int res = pread(tz->fd, buf, sizeof(buf), offset);
-		if (res != sizeof(buf))
+		int rest = pread(tz->fd, buft, sizeof(buft), offset+sizeof(buf));
+
+		if (res != sizeof(buf) || rest != sizeof(buft))
 			return -EIO;
-		cip  = ((uint32_t)buf[0]) << 8;
-		cip += ((uint32_t)buf[1]) << 0;
-		cip += ((uint32_t)buf[2]) << 16;
+		cip  = ((uint64_t)buf[0]) << 16;
+		cip += ((uint64_t)buf[1]) << 8;
+		cip += ((uint64_t)buf[2]) << 0;
 		if (cip > lip)
 			break;
-		*tmz = buf[3];
-		offset += sizeof(buf);
+		*tmz = buft[0];
+		offset += sizeof(buf)+sizeof(buft);
 	}
 
 	return 0;
@@ -167,7 +173,7 @@ static int tz_search(tz_t *tz, int offset, uint32_t lip, int index, int *tmz)
  */
 int tz_lookup(void *obj, char *addr, sa_family_t type, int *tz)
 {
-	uint32_t ipv4_addr, hip, lip;
+	uint64_t ipv4_addr, hip, lip;
 	int res = to_ipv4(addr, type, &ipv4_addr);
 	int offset, index;
 
@@ -195,6 +201,7 @@ int main(int argc, char *argv[])
 	char *ip = argv[1];
 	void *obj = tz_setup("xx");
 	int res, tz = -1;
+
 
 	if (obj == NULL || argc != 2)
 		return -1;

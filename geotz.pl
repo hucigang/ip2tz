@@ -1,6 +1,6 @@
 #!/bin/perl -w
 use strict;
-#use Compress::Zlib;
+use Compress::Zlib;
 
 my $geoPath=".";
 
@@ -147,7 +147,7 @@ while (my $line = <FILE>){
     next if (!($line =~ m/^[0-9]/));
     my @temp = split (',',$line);
     # print $temp[2]."\n";
-    # print $temp[0].",".($temp[1]-$temp[0]).",".$hashLong{$temp[2]}."\n";
+    #print $temp[0].",".($temp[1]-$temp[0]).",".$hashLong{$temp[2]}."\n";
     my $tz = $hashLong{$temp[2]};
     if ($tz == 1){
         $start1{$temp[0]} = $temp[1];
@@ -307,6 +307,35 @@ mergeHash("x9", \%start_9, \@astart_9, \@aend_9);
 mergeHash("x10", \%start_10, \@astart_10, \@aend_10);
 mergeHash("x11", \%start_11, \@astart_11, \@aend_11);
 
+sub getLongByHip{
+    my $ip = shift;
+    my ($a,$b,$c,$d) = split(/\./, $ip);
+
+    return unpack("b8",pack("N", $a << 24));
+}
+
+sub getLongByLip{
+    my $ip = shift;
+    print "ip : $ip\n";
+    my ($a,$b,$c,$d) = split(/\./, $ip);
+
+    my $e = ($b << 16) | ($c <<  8) | ($d <<  0);
+
+    return unpack("b24", pack("N", $e));
+}
+
+sub getLongHipByLong{
+    my $ip = shift;
+
+    return unpack("b8", pack("i", $ip >> 24));
+}
+
+
+sub getLongLipByLong{
+    my $ip = shift;
+    return unpack("b24", pack("N", $ip << 8));
+}
+
 sub getFileString{
     my $hash = shift;
     my $result = "";
@@ -322,57 +351,36 @@ sub getFileString{
     {
         $aaacount++;
         my $value = $hash->{$key};
-        if ($aaacount <= 30){
-        print "$key, $value\n";
-    }
+        #print "$key, $value\n";
         my $offset = 0;
 
-        my @tstart = split //, unpack("b32",pack("N",$key));
+        #my @tstart = split //, unpack("b32",pack("N",$key));
+        
+        # 记录 Head
+        my @hip = split//, getLongHipByLong($key);
+        my @lip = split//, getLongLipByLong($key);
         my @tzs = split //, unpack("b8",pack("i",$value));
-=pod
-        my @dx = ();
-        if ($value > 0){
-            @dx = split //, unpack("b8",pack("i",1));
-        }else{
-            @dx = split //, unpack("b8",pack("i",0));
-        }
-=cut
+        my $curHead = join "", @hip; 
         my $bitStart = "";
         my $bitTZ= "";
         my $bitDX= "";
-        # 预留20个Bit(长度) + 4Bit(相同的4位数据)
-        # 总数据约40W 需要20个Bit记录 
-        # 记录 Head
-        my $curHead = "";
-        foreach my $i (0 .. 7){
-            $curHead .= $tstart[$i];
-        }
 
-        my $tempcount = 0;
-        foreach my $bit (@tstart){
-            # 少写Head部分
-            next if ($tempcount++ < 8);    
+        foreach my $bit (@lip){
             vec($bitStart, $offset++, 1) = $bit;
         }
         $offset = 0;
         foreach my $bit (@tzs){
             vec($bitTZ, $offset++, 1) = $bit;
         }
-=pod
-        $offset = 0;
-        foreach my $bit (@dx){
-            vec($bitDX, $offset++, 1) = $bit;
-        }
-=cut
         if (((($preHead cmp "") != 0) 
                 && (($preHead cmp $curHead) != 0)) 
             || $aaacount == $totalCount){
             my $bitHead = "";
             $offset = 0;
-            foreach my $i(0 .. 7){
-                my @preHeadArray = split //, $preHead;
-                vec($bitHead, $offset++, 1) = $preHeadArray[$i];
-            }
+
+            foreach my $bit (@hip){
+                vec($bitHead, $offset++, 1) = $bit;
+            }        
             my @lengths = split //, unpack("b16",pack("n",$preHeadCount));
             my $lengthBit = "";
             $offset = 0;
@@ -381,7 +389,6 @@ sub getFileString{
             }
 
             $headResult .=  $bitHead.$lengthBit;
-            print "End $preHead : $preHeadCount\n";
             # 重置计数器
             $preHeadCount = 0;
             $headResultCount++;
