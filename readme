@@ -1,0 +1,6 @@
+
+wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCity_CSV/GeoLiteCity-latest.zip
+
+perl geotz.pl 
+
+cd geo ./tz
